@@ -1,0 +1,157 @@
+# =====================================================================
+# KazFinPersona - reference distributions for synthetic profile calibration
+#
+# !!! IMPORTANT !!!
+# Every value marked [VERIFY] is a PLACEHOLDER.
+# Before running the final dataset build, replace them with figures from:
+#   - Bureau of National Statistics of RK (stat.gov.kz)
+#   - National Bank of RK (nationalbank.kz)
+#   - Halyk Bank official product pages (halykbank.kz)
+# and record the source + retrieval date in `sources` below.
+# The validation module runs a KS-test of generated data against these
+# targets and writes Table A1 of the paper. If these numbers are made up,
+# the validation is meaningless -- reviewers WILL ask.
+# =====================================================================
+
+sources:
+  income: "RESOLVED. Bureau of National Statistics RK, 'Zarabotnaya plata za I kvartal 2026 goda'.
+    Mean monthly nominal wage 461,486 KZT; median 331,527 KZT.
+    https://stat.gov.kz/ru/news/zarabotnaya-plata-za-i-kvartal-2026-goda/ accessed 2026-08-07.
+    CAVEAT for the paper: BNS wage statistics cover EMPLOYED workers (naemnye rabotniki) only.
+    They do not describe the self-employed, retired or unemployed. The calibration therefore
+    anchors the `employed` segment; other segments are scaled by the declared multipliers below
+    and are an explicit modelling assumption, not an official figure. State this in Limitations."
+  age: "[VERIFY] BNS RK, population age structure, <year>"
+  spending: "[VERIFY] BNS RK, household consumption expenditure structure"
+  banking: "[VERIFY] NBK RK, retail deposit/loan penetration"
+
+# ---------------------------------------------------------------- income
+# sigma is DERIVED, not guessed. For a lognormal, mean/median = exp(sigma^2/2),
+# so sigma = sqrt(2 * ln(461486/331527)) = 0.8133.
+# Verified by simulation: median 331,731 / mean 462,434 against targets
+# 331,527 / 461,486. Implied Gini 0.435.
+income_kzt:
+  distribution: lognormal
+  median: 331527          # BNS RK, Q1 2026
+  mean_target: 461486     # BNS RK, Q1 2026 (used to derive sigma, and to validate)
+  sigma: 0.81332          # DERIVED, see above
+  floor: 85000            # [VERIFY] minimum wage 2026
+  cap: 6000000            # truncation; declared, not empirical
+
+# ------------------------------------------------------------------- age
+age:
+  distribution: empirical
+  # adult banking population only (18+)
+  bins:   [18, 25, 30, 35, 40, 45, 50, 55, 60, 65, 75]
+  weights: [0.11, 0.14, 0.14, 0.13, 0.11, 0.10, 0.08, 0.07, 0.06, 0.06]  # [VERIFY]
+
+# ---------------------------------------------------------------- region
+# RESOLVED from two Taldau exports, 2025:
+#   SKZH 252101 - average monthly nominal wage per employee, by region, KZT
+#   SKZH 251401 - average listed number of employees, by region, persons
+# income_mult = regional wage / national wage (443,315 KZT)
+# weight      = regional employee headcount / national headcount (4,033,000)
+#
+# Internal consistency check (report this in the appendix):
+#   sum of regional headcount  = 4,033,000 = national figure exactly
+#   headcount-weighted wage    = 443,498 vs published 443,315 (+0.04%)
+#   headcount-weighted mult    = 1.0004 (normalisation in profiles.py is a no-op,
+#                                which independently confirms the derivation)
+#
+# NOTE: `urban` is NOT sourced. The three cities are urban by definition; for
+# oblasts it is a coarse assumption and must be declared as such in Limitations,
+# or dropped. It does not affect income.
+regions:
+  - {name: "Mangystau",     weight: 0.0430, urban: false, income_mult: 1.405}
+  - {name: "Atyrau",        weight: 0.0454, urban: false, income_mult: 1.383}
+  - {name: "Astana",        weight: 0.0913, urban: true,  income_mult: 1.340}
+  - {name: "Ulytau",        weight: 0.0167, urban: false, income_mult: 1.324}
+  - {name: "Almaty city",   weight: 0.1398, urban: true,  income_mult: 1.254}
+  - {name: "Karaganda",     weight: 0.0678, urban: false, income_mult: 0.955}
+  - {name: "Pavlodar",      weight: 0.0482, urban: false, income_mult: 0.943}
+  - {name: "East KZ",       weight: 0.0426, urban: false, income_mult: 0.940}
+  - {name: "Aktobe",        weight: 0.0494, urban: false, income_mult: 0.913}
+  - {name: "Kostanay",      weight: 0.0440, urban: false, income_mult: 0.867}
+  - {name: "Abai",          weight: 0.0321, urban: false, income_mult: 0.851}
+  - {name: "Akmola",        weight: 0.0400, urban: false, income_mult: 0.844}
+  - {name: "West KZ",       weight: 0.0366, urban: false, income_mult: 0.837}
+  - {name: "Kyzylorda",     weight: 0.0392, urban: false, income_mult: 0.836}
+  - {name: "Almaty region", weight: 0.0460, urban: false, income_mult: 0.821}
+  - {name: "Shymkent",      weight: 0.0479, urban: true,  income_mult: 0.776}
+  - {name: "Zhetysu",       weight: 0.0269, urban: false, income_mult: 0.749}
+  - {name: "Zhambyl",       weight: 0.0466, urban: false, income_mult: 0.739}
+  - {name: "North KZ",      weight: 0.0283, urban: false, income_mult: 0.737}
+  - {name: "Turkistan",     weight: 0.0681, urban: false, income_mult: 0.720}
+
+# ------------------------------------------------------------- employment
+employment:
+  employed:       {weight: 0.58, income_mult: 1.00, stability: 0.95}
+  self_employed:  {weight: 0.16, income_mult: 0.90, stability: 0.70}
+  business_owner: {weight: 0.06, income_mult: 1.60, stability: 0.75}
+  student:        {weight: 0.08, income_mult: 0.25, stability: 0.60}
+  retired:        {weight: 0.08, income_mult: 0.45, stability: 0.99}
+  unemployed:     {weight: 0.04, income_mult: 0.15, stability: 0.30}
+
+# ----------------------------------------------------------- household
+family_status:
+  single:            0.31
+  married_no_kids:   0.17
+  married_with_kids: 0.42
+  single_parent:     0.10
+children_count_if_kids:   # conditional distribution
+  1: 0.38
+  2: 0.37
+  3: 0.18
+  4: 0.07
+
+# --------------------------------------------------------- language use
+# Drives the code-switching robustness split. [VERIFY] against a real
+# survey or state your assumption explicitly in the paper.
+language_profile:
+  kk_dominant:   0.42
+  ru_dominant:   0.33
+  mixed:         0.25
+
+# ------------------------------------------------------------- spending
+# Share of monthly income by category. Dirichlet concentration around these
+# means. Must sum to <= 1.0; remainder is unspent (savings capacity).
+spending_shares:            # [VERIFY] BNS household budget survey
+  food:            0.44
+  housing_utils:   0.13
+  transport:       0.09
+  communication:   0.03
+  clothing:        0.06
+  health:          0.04
+  education:       0.03
+  entertainment:   0.04
+  other:           0.06
+dirichlet_concentration: 45   # higher = tighter around the means
+
+# --------------------------------------------------- credit / behaviour
+credit_score:
+  distribution: normal
+  mean: 640                # [VERIFY] no public KZ scorecard; state as assumption
+  std: 95
+  min: 300
+  max: 850
+
+existing_product_penetration:   # [VERIFY] NBK retail statistics
+  debit_card:        0.92
+  savings_deposit:   0.28
+  term_deposit:      0.14
+  credit_card:       0.31
+  consumer_loan:     0.24
+  mortgage:          0.07
+  auto_loan:         0.05
+  installment:       0.38
+
+# --------------------------------------------------------- life events
+# Probability that a client experiences the event within the 18-month
+# observation window. Drives preference drift.
+life_events:
+  job_loss:        0.05
+  salary_raise:    0.18
+  new_child:       0.06
+  relocation:      0.04
+  large_purchase:  0.12
+  income_shock_down: 0.07

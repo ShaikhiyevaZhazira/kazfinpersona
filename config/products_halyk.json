@@ -1,0 +1,683 @@
+{
+  "_meta": {
+    "catalog_version": "0.2-real-products",
+    "issuer": "Halyk Bank of Kazakhstan",
+    "retrieved": "2026-08-07",
+    "sources": {
+      "deposits": "ALCO minutes No.75 of 12.06.2026, rates effective 15.06.2026 (official PDF)",
+      "credit": "https://halykbank.kz/credits overview page, accessed 2026-08-07"
+    },
+    "PROVENANCE_RULE": "Each product carries `eligibility_source`. 'published' = citable from a Halyk page or state programme document. 'partially_published' = pricing published, borrower conditions not yet collected. 'assumed' = modelling assumption that MUST appear in Limitations. Never silently promote 'assumed' to 'published'. If assumed rules dominate, the compliance metric measures your assumptions rather than Halyk policy, and the paper must say so.",
+    "STILL_OPEN": "Borrower requirements (age, income floor, employment, DTI) are NOT on the overview page. They sit behind each product's 'Подробнее' link and in the tariff documents at https://halykbank.kz/documents. Collect and flip product by product."
+  },
+  "products": [
+    {
+      "product_id": "hb_deposit_qorjin",
+      "name_kk": "QORJIN",
+      "name_ru": "QORJIN",
+      "category": "deposit",
+      "goals": [
+        "save",
+        "grow_capital"
+      ],
+      "attributes": {
+        "rate_annual_pct": 14.5,
+        "aeir_pct": 15.5,
+        "term_months": [
+          3,
+          6,
+          12
+        ],
+        "rate_by_term": {
+          "3": 17.1,
+          "6": 15.37,
+          "12": 14.5
+        },
+        "min_amount_kzt": 50000,
+        "replenishable": true,
+        "partial_withdrawal": false,
+        "kdif_insured": true
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 18,
+        "age_max": null,
+        "income_min_kzt": 0,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner",
+          "student",
+          "retired",
+          "unemployed"
+        ],
+        "credit_score_min": null,
+        "max_dti": null,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "min_free_cashflow_kzt": 40000,
+        "prefers_stable_income": true,
+        "prefers_low_volatility_spending": true
+      }
+    },
+    {
+      "product_id": "hb_deposit_maximum",
+      "name_kk": "Максимальный",
+      "name_ru": "Максимальный",
+      "category": "deposit",
+      "goals": [
+        "save",
+        "grow_capital"
+      ],
+      "attributes": {
+        "rate_annual_pct": 14.93,
+        "aeir_pct": 16.0,
+        "term_months": [
+          3,
+          6,
+          12,
+          24
+        ],
+        "rate_by_term": {
+          "3": 16.67,
+          "6": 15.8,
+          "12": 14.93,
+          "24": 12.15
+        },
+        "min_amount_kzt": 15000,
+        "replenishable": false,
+        "prolongation": false,
+        "kdif_insured": true
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 18,
+        "age_max": null,
+        "income_min_kzt": 0,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner",
+          "student",
+          "retired",
+          "unemployed"
+        ],
+        "credit_score_min": null,
+        "max_dti": null,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "min_free_cashflow_kzt": 25000,
+        "prefers_low_volatility_spending": true
+      }
+    },
+    {
+      "product_id": "hb_deposit_universal",
+      "name_kk": "Универсальный",
+      "name_ru": "Универсальный",
+      "category": "deposit",
+      "goals": [
+        "save",
+        "emergency_fund",
+        "liquidity_buffer"
+      ],
+      "attributes": {
+        "rate_annual_pct": 14.06,
+        "aeir_pct": 15.0,
+        "term_months": [
+          6,
+          12
+        ],
+        "rate_by_term": {
+          "6": 14.32,
+          "12": 14.06
+        },
+        "min_amount_kzt": 1000,
+        "replenishable": true,
+        "partial_withdrawal": true,
+        "kdif_insured": true
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 18,
+        "age_max": null,
+        "income_min_kzt": 0,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner",
+          "student",
+          "retired",
+          "unemployed"
+        ],
+        "credit_score_min": null,
+        "max_dti": null,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "min_free_cashflow_kzt": 10000,
+        "prefers_irregular_income": true
+      }
+    },
+    {
+      "product_id": "hb_deposit_aqyl",
+      "name_kk": "AQYL",
+      "name_ru": "AQYL (образовательный)",
+      "category": "deposit",
+      "goals": [
+        "education_savings",
+        "save_for_child"
+      ],
+      "attributes": {
+        "rate_annual_pct": 14.3,
+        "aeir_pct": 15.5,
+        "term_months": [
+          36,
+          60
+        ],
+        "rate_by_term": {
+          "36": 14.3,
+          "60": 13.9
+        },
+        "state_premium": true,
+        "kdif_insured": true
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 18,
+        "age_max": null,
+        "income_min_kzt": 0,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner",
+          "retired"
+        ],
+        "credit_score_min": null,
+        "max_dti": null,
+        "requires_children": true,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "min_free_cashflow_kzt": 15000
+      }
+    },
+    {
+      "product_id": "hb_loan_no_collateral",
+      "name_kk": "Кепілсіз несие",
+      "name_ru": "Кредит без залога",
+      "category": "loan",
+      "goals": [
+        "finance_purchase",
+        "cover_gap"
+      ],
+      "attributes": {
+        "rate_annual_pct": 17.5,
+        "rate_max_pct": 38.0,
+        "aeir_min_pct": 28.8,
+        "aeir_max_pct": 45.3,
+        "amount_max_kzt": 8000000,
+        "term_months": [
+          12,
+          24,
+          36,
+          48,
+          60
+        ]
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 150000,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner"
+        ],
+        "credit_score_min": 620,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_large_purchase_intent": true
+      }
+    },
+    {
+      "product_id": "hb_loan_consumer",
+      "name_kk": "Тұтынушылық несие",
+      "name_ru": "Кредит на потребительские цели",
+      "category": "loan",
+      "goals": [
+        "finance_purchase",
+        "cover_gap"
+      ],
+      "attributes": {
+        "amount_rule": "depends on income",
+        "decision_days": 5,
+        "term_months": [
+          12,
+          36,
+          60,
+          120
+        ]
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 200000,
+        "employment_allowed": [
+          "employed",
+          "business_owner"
+        ],
+        "credit_score_min": 640,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_large_purchase_intent": true,
+        "prefers_stable_income": true
+      }
+    },
+    {
+      "product_id": "hb_refinancing",
+      "name_kk": "Қайта қаржыландыру",
+      "name_ru": "Рефинансирование",
+      "category": "loan",
+      "goals": [
+        "refinance_debt"
+      ],
+      "attributes": {
+        "rate_annual_pct": 17.5,
+        "rate_max_pct": 38.0,
+        "aeir_min_pct": 28.8,
+        "aeir_max_pct": 45.3,
+        "amount_max_kzt": 8000000,
+        "term_months": [
+          12,
+          24,
+          36,
+          48,
+          60
+        ]
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 150000,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner"
+        ],
+        "credit_score_min": 600,
+        "max_dti": 0.6,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": [
+          "hb_loan_no_collateral",
+          "hb_loan_consumer",
+          "hb_card_credit",
+          "hb_installment"
+        ]
+      },
+      "suitability_signals": {
+        "requires_existing_debt": true
+      }
+    },
+    {
+      "product_id": "hb_mortgage_digital",
+      "name_kk": "Сандық ипотека",
+      "name_ru": "Цифровая ипотека",
+      "category": "loan",
+      "goals": [
+        "buy_home"
+      ],
+      "attributes": {
+        "approval_minutes": 1,
+        "insurance_full_term": true
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 400000,
+        "employment_allowed": [
+          "employed",
+          "business_owner"
+        ],
+        "credit_score_min": 680,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_housing_intent": true,
+        "prefers_stable_income": true
+      }
+    },
+    {
+      "product_id": "hb_mortgage_7_20_25",
+      "name_kk": "«7-20-25»",
+      "name_ru": "Программа «7-20-25»",
+      "category": "loan",
+      "goals": [
+        "buy_home"
+      ],
+      "attributes": {
+        "rate_annual_pct": 7.0,
+        "aeir_min_pct": 7.24,
+        "aeir_max_pct": 7.8,
+        "down_payment_min_pct": 20,
+        "term_months": [
+          300
+        ]
+      },
+      "eligibility_source": "partially_published",
+      "eligibility_note": "Rate, down payment and term are PUBLISHED. The state programme also sets borrower conditions (no other residential property in RK, primary market only, price caps by city) which are publishable - collect them and flip to 'published'. These make excellent benchmark items: crisp, checkable, and unlikely to be in an LLM's parametric knowledge.",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 350000,
+        "employment_allowed": [
+          "employed",
+          "business_owner",
+          "self_employed"
+        ],
+        "credit_score_min": 650,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [
+          "hb_mortgage_7_20_25",
+          "hb_mortgage_digital"
+        ],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_housing_intent": true
+      }
+    },
+    {
+      "product_id": "hb_mortgage_developer",
+      "name_kk": "Салынып жатқан тұрғын үй",
+      "name_ru": "Строящееся жильё от партнёра-застройщика",
+      "category": "loan",
+      "goals": [
+        "buy_home"
+      ],
+      "attributes": {
+        "rate_annual_pct": 1.5,
+        "rate_max_pct": 18.0,
+        "aeir_min_pct": 1.51,
+        "aeir_max_pct": 19.55,
+        "down_payment_min_pct": 20,
+        "term_months": [
+          240
+        ]
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 400000,
+        "employment_allowed": [
+          "employed",
+          "business_owner"
+        ],
+        "credit_score_min": 660,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_housing_intent": true
+      }
+    },
+    {
+      "product_id": "hb_auto_digital",
+      "name_kk": "Сандық автонесие",
+      "name_ru": "Цифровой автокредит",
+      "category": "loan",
+      "goals": [
+        "finance_vehicle"
+      ],
+      "attributes": {
+        "amount_max_kzt": 30000000,
+        "approval_minutes": 1,
+        "online": true,
+        "term_months": [
+          24,
+          36,
+          60,
+          84
+        ]
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 23,
+        "age_max": 63,
+        "income_min_kzt": 300000,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner"
+        ],
+        "credit_score_min": 650,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_transport_spending": true
+      }
+    },
+    {
+      "product_id": "hb_auto_subsidised",
+      "name_kk": "Жеңілдікті автонесие (ҚДБ)",
+      "name_ru": "Автокредит льготный (БРК)",
+      "category": "loan",
+      "goals": [
+        "finance_vehicle"
+      ],
+      "attributes": {
+        "rate_annual_pct": 4.0,
+        "aeir_min_pct": 4.1,
+        "aeir_max_pct": 7.5,
+        "amount_max_kzt": 10000000,
+        "term_months": [
+          24,
+          36,
+          60,
+          84
+        ],
+        "domestic_vehicles_only": true
+      },
+      "eligibility_source": "partially_published",
+      "eligibility_note": "Rate, cap and term PUBLISHED. BRK subsidy restricts eligible vehicles to domestically assembled models; collect borrower conditions and flip to 'published'.",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 200000,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner"
+        ],
+        "credit_score_min": 620,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_transport_spending": true
+      }
+    },
+    {
+      "product_id": "hb_installment",
+      "name_kk": "Halyk бөліп төлеу",
+      "name_ru": "Halyk Рассрочка",
+      "category": "installment",
+      "goals": [
+        "finance_purchase",
+        "cover_gap",
+        "liquidity_buffer"
+      ],
+      "attributes": {
+        "rate_annual_pct": 0.0,
+        "term_months": [
+          3,
+          6,
+          12,
+          24
+        ],
+        "amount_max_kzt": 1500000
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 18,
+        "age_max": 65,
+        "income_min_kzt": 85000,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner",
+          "student"
+        ],
+        "credit_score_min": 560,
+        "max_dti": 0.55,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "requires_large_purchase_intent": true,
+        "prefers_retail_spending": true
+      }
+    },
+    {
+      "product_id": "hb_card_debit",
+      "name_kk": "Halyk Bonus дебеттік карта",
+      "name_ru": "Halyk Bonus (дебетовая карта)",
+      "category": "card",
+      "goals": [
+        "daily_payments"
+      ],
+      "attributes": {
+        "annual_fee_kzt": 0,
+        "bonus_programme": true
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 16,
+        "age_max": null,
+        "income_min_kzt": 0,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner",
+          "student",
+          "retired",
+          "unemployed"
+        ],
+        "credit_score_min": null,
+        "max_dti": null,
+        "requires_children": false,
+        "excludes_if_holds": [
+          "hb_card_debit"
+        ],
+        "requires_holds": []
+      },
+      "suitability_signals": {}
+    },
+    {
+      "product_id": "hb_card_credit",
+      "name_kk": "My!Card",
+      "name_ru": "My!Card (кредитная карта)",
+      "category": "card",
+      "goals": [
+        "liquidity_buffer",
+        "daily_payments",
+        "cover_gap"
+      ],
+      "attributes": {
+        "grace_period_days": 55,
+        "limit_max_kzt": 2000000,
+        "annual_fee_kzt": 0
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 21,
+        "age_max": 63,
+        "income_min_kzt": 120000,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner"
+        ],
+        "credit_score_min": 600,
+        "max_dti": 0.5,
+        "requires_children": false,
+        "excludes_if_holds": [
+          "hb_card_credit"
+        ],
+        "requires_holds": []
+      },
+      "suitability_signals": {
+        "prefers_high_card_usage": true
+      }
+    },
+    {
+      "product_id": "hb_invest",
+      "name_kk": "Halyk Invest",
+      "name_ru": "Halyk Invest (брокерский счёт)",
+      "category": "investment",
+      "goals": [
+        "grow_capital"
+      ],
+      "attributes": {
+        "kdif_insured": false
+      },
+      "eligibility_source": "assumed",
+      "eligibility": {
+        "age_min": 18,
+        "age_max": null,
+        "income_min_kzt": 350000,
+        "employment_allowed": [
+          "employed",
+          "self_employed",
+          "business_owner"
+        ],
+        "credit_score_min": null,
+        "max_dti": 0.35,
+        "requires_children": false,
+        "excludes_if_holds": [],
+        "requires_holds": [
+          "hb_card_debit"
+        ]
+      },
+      "suitability_signals": {
+        "min_free_cashflow_kzt": 100000,
+        "requires_existing_savings": true,
+        "prefers_stable_income": true
+      }
+    }
+  ]
+}
