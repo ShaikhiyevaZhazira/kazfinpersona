@@ -20,8 +20,6 @@ from __future__ import annotations
 import re
 import unicodedata
 
-# Phrases that indicate the surrounding product mention is a *rejection*,
-# not a recommendation. Extend after native-speaker review.
 # Markers must be SPECIFIC. An early version listed the bare Kazakh word
 # "төмен" (low), which matches inside the entirely ordinary phrase
 # "ең төменгі сома" (minimum amount). Every correct recommendation that quoted
@@ -59,11 +57,22 @@ def _norm(s: str) -> str:
 class AnswerParser:
     def __init__(self, catalog: dict):
         self.catalog = catalog
+        # The product_id itself MUST be an alias. Models that follow the
+        # instruction to name catalogue products often emit the canonical id
+        # ("hb_deposit_universal") rather than the display name. An earlier
+        # version searched only name_kk/name_ru, so a fluent, correct,
+        # instruction-following answer was scored `unparseable`.
+        #
+        # This penalised precisely the better-behaved models: KazLLM-8B was
+        # reported at 66.7% unparseable while its answers were grammatical and
+        # on-topic, purely because it referred to products by id.
         self.aliases: dict[str, list[str]] = {}
         for p in catalog["products"]:
-            names = [p.get("name_kk", ""), p.get("name_ru", "")]
+            names = [p["product_id"], p.get("name_kk", ""), p.get("name_ru", "")]
             names = [_norm(n) for n in names if n]
-            self.aliases[p["product_id"]] = names
+            # longest first, so a longer id is preferred over a shorter alias
+            # that happens to be a substring of it
+            self.aliases[p["product_id"]] = sorted(set(names), key=len, reverse=True)
         self.by_id = {p["product_id"]: p for p in catalog["products"]}
 
     # ------------------------------------------------------------ products
@@ -73,6 +82,8 @@ class AnswerParser:
         found: list[tuple[str, int]] = []
         for pid, names in self.aliases.items():
             for n in names:
+                if len(n) < 4:
+                    continue          # too short to be an unambiguous mention
                 idx = t.find(n)
                 if idx >= 0:
                     found.append((pid, idx))
