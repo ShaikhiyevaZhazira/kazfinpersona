@@ -56,7 +56,15 @@ def _estimate_new_payment(product: dict, profile: ClientProfile) -> float:
     if cat == "loan":
         amount = min(attrs.get("amount_max_kzt", profile.income_kzt * 12),
                      profile.income_kzt * 12)
-        term = max(attrs.get("term_months", [36])[0], 12)
+        # Use the LONGEST offered term, not the first in the list. A rational
+        # client facing a DTI constraint would choose the term that minimises
+        # the monthly payment; using term_months[0] (often the shortest) wildly
+        # overstated the payment -- at income 300k this produced DTI=1.10
+        # (payment exceeding total income) for a product whose real terms go
+        # up to 60 months, making hb_loan_no_collateral mathematically
+        # unreachable for almost every synthetic client (1 win in 5641
+        # scenarios).
+        term = max(max(attrs.get("term_months", [36])), 12)
         rate = attrs.get("rate_annual_pct", 20.0) / 100.0 / 12.0
         if rate <= 0:
             return amount / term

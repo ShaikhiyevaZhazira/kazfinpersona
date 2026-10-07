@@ -95,3 +95,12 @@ def test_7_20_25_income_floor_is_region_dependent():
     assert check_product(mk(region="Astana", income_kzt=120_000, age=30), p).eligible is False
     assert check_product(mk(region="Astana", income_kzt=160_000, age=30), p).eligible is True
     assert check_product(mk(region="Turkistan", income_kzt=120_000, age=30), p).eligible is True
+
+def test_loan_dti_uses_longest_term_not_shortest():
+    """Regression: using term_months[0] instead of the longest term inflated
+    the implied monthly payment so much that hb_loan_no_collateral was
+    mathematically unreachable for nearly every client (DTI > 1.0 even at
+    zero existing debt)."""
+    p = BY_ID["hb_loan_no_collateral"]
+    v = check_product(mk(income_kzt=300_000, existing_debt_service_kzt=0), p)
+    assert "max_dti" not in v.violated_rules

@@ -98,7 +98,7 @@ def plausible_intents(profile: ClientProfile, feats: dict[str, float]) -> list[s
     out = ["save", "daily_payments"]
     if profile.children > 0:
         out.append("education_savings")
-    if feats.get("free_cashflow", 0) > 60000:
+    if feats.get("free_cashflow", 0) > 90000:
         out += ["grow_capital", "retirement"]
     if feats.get("fx_share", 0) > 0.01:
         out.append("hedge_fx")
