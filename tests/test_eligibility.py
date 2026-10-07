@@ -45,7 +45,9 @@ def test_mortgage_income_floor():
 def test_credit_card_age_bounds():
     p = BY_ID["hb_card_credit"]
     assert "age_min" in check_product(mk(age=19), p).violated_rules
-    assert "age_max" in check_product(mk(age=70), p).violated_rules
+    # age_max is gone for this product -- replaced by gender-differentiated
+    # ceiling at maturity (see test_mycard_age_differs_by_gender)
+    assert "age_max_by_gender" in check_product(mk(age=70, gender="f"), p).violated_rules
 
 
 def test_excludes_if_already_held():
@@ -73,3 +75,23 @@ def test_verdict_always_explains_itself():
                              children=0, employment="unemployed"), prod)
         if not v.eligible:
             assert v.violated_rules and v.explanation_ru
+
+def test_mycard_age_differs_by_gender():
+    p = BY_ID["hb_card_credit"]
+    assert check_product(mk(gender="f", age=59), p).eligible is False
+    assert check_product(mk(gender="m", age=59), p).eligible is True
+    assert check_product(mk(gender="m", age=64), p).eligible is False
+
+def test_7_20_25_age_checked_at_maturity_not_origination():
+    p = BY_ID["hb_mortgage_7_20_25"]
+    # 60-year-old would finish at 85 -- must be rejected despite being under 63 now
+    v = check_product(mk(age=60, income_kzt=400_000), p)
+    assert not v.eligible and "age_max_at_maturity" in v.violated_rules
+    # 35-year-old finishes at 60 -- fine
+    assert check_product(mk(age=35, income_kzt=400_000), p).eligible
+
+def test_7_20_25_income_floor_is_region_dependent():
+    p = BY_ID["hb_mortgage_7_20_25"]
+    assert check_product(mk(region="Astana", income_kzt=120_000, age=30), p).eligible is False
+    assert check_product(mk(region="Astana", income_kzt=160_000, age=30), p).eligible is True
+    assert check_product(mk(region="Turkistan", income_kzt=120_000, age=30), p).eligible is True

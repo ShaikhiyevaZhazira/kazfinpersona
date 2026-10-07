@@ -233,7 +233,8 @@
           60
         ]
       },
-      "eligibility_source": "assumed",
+      "eligibility_source": "partially_published",
+      "eligibility_note": "Employment eligibility (self-employed, military, retirees explicitly accepted; min. 3 months at current job) and required documents are PUBLISHED. Age, income floor, and credit-score threshold are NOT published ('depends on bank risk policy') — remain assumed. Military personnel mapped to 'employed' (no dedicated category in client model). Job-tenure requirement not enforced in simulation (no job-tenure attribute exists). Source: halykbank.kz, accessed 2026-10.",
       "eligibility": {
         "age_min": 21,
         "age_max": 63,
@@ -241,7 +242,8 @@
         "employment_allowed": [
           "employed",
           "self_employed",
-          "business_owner"
+          "business_owner", 
+          "retired"
         ],
         "credit_score_min": 620,
         "max_dti": 0.5,
@@ -389,11 +391,13 @@
         ]
       },
       "eligibility_source": "partially_published",
-      "eligibility_note": "Rate, down payment and term are PUBLISHED. The state programme also sets borrower conditions (no other residential property in RK, primary market only, price caps by city) which are publishable - collect them and flip to 'published'. These make excellent benchmark items: crisp, checkable, and unlikely to be in an LLM's parametric knowledge.",
+      "eligibility_note": "Age ceiling (63) applies AT LOAN MATURITY, not at origination — for a 25-year (300-month) term this caps effective origination age at ~38. Income floor is PUBLISHED and REGION-TIERED: 150,000 in Astana/Almaty city/Atyrau/Mangystau (proxy for Aktau — no sub-oblast resolution in client model), 100,000 elsewhere. Minimum 6-month job tenure is published but not enforced (no job-tenure attribute). Must hold no unpaid mortgage debt — broadened exclusion to any existing mortgage product.",
       "eligibility": {
         "age_min": 21,
-        "age_max": 63,
-        "income_min_kzt": 350000,
+        "age_max_at_maturity": 63,
+        "income_min_kzt": 100000,
+        "income_min_kzt_premium": 150000,
+        "premium_income_regions": ["Astana", "Almaty city", "Atyrau", "Mangystau"],
         "employment_allowed": [
           "employed",
           "business_owner",
@@ -404,7 +408,8 @@
         "requires_children": false,
         "excludes_if_holds": [
           "hb_mortgage_7_20_25",
-          "hb_mortgage_digital"
+          "hb_mortgage_digital",
+          "hb_mortgage_developer"
         ],
         "requires_holds": []
       },
@@ -550,10 +555,11 @@
         ],
         "amount_max_kzt": 1500000
       },
-      "eligibility_source": "assumed",
+      "eligibility_source": "partially_published",
+      "eligibility_note": "Age range 18-67 is PUBLISHED (widened from prior assumed 18-65). No fixed income floor published — depends on income/solvency assessment, consistent with existing design. Employment restrictions and credit-check requirement NOT published.",
       "eligibility": {
         "age_min": 18,
-        "age_max": 65,
+        "age_max": 67,
         "income_min_kzt": 85000,
         "employment_allowed": [
           "employed",
@@ -622,11 +628,13 @@
         "limit_max_kzt": 2000000,
         "annual_fee_kzt": 0
       },
-      "eligibility_source": "assumed",
+      "eligibility_source": "partially_published",
+      "eligibility_note": "Age floor (21) and gender-differentiated ceiling (women ≤58, men ≤63 at maturity) are PUBLISHED. Income floor is published as TIERED (40,000 for salary-project employer clients, 50,000 general) — we use the general 50,000 threshold since salary-project employer status is not modelled. Employment restrictions and credit-history requirement are NOT published.",
       "eligibility": {
         "age_min": 21,
-        "age_max": 63,
-        "income_min_kzt": 120000,
+        "age_max": null,
+        "age_max_by_gender": {"f": 58, "m": 63},
+        "income_min_kzt": 50000,
         "employment_allowed": [
           "employed",
           "self_employed",
