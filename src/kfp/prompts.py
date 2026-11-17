@@ -19,6 +19,11 @@ Catalogue modes:
             knowledge. Reveals hallucinated product names.
   listed    product names and terms in the prompt.
   filtered  only products the client is actually eligible for.
+  rules     like `listed`, plus the eligibility rules of every product in
+            plain language. The model sees the same information as the rule
+            engine and must still apply it to the client; this is the
+            condition that separates "cannot know the rules" from "cannot
+            use the profile".
 
 `filtered` is not a baseline, it is an ORACLE upper bound: it hands the model
 the output of the rule engine. Report it as such and never as a system.
@@ -110,8 +115,61 @@ def behaviour_block(feats: dict, segment: int | None) -> str:
 
 import random
 
+_EMP_SHORT_RU = {
+    "employed": "наёмный работник",
+    "self_employed": "самозанятый",
+    "business_owner": "владелец бизнеса",
+    "student": "студент",
+    "retired": "пенсионер",
+    "unemployed": "без работы",
+}
+
+
+def rules_text(p: dict, names: dict[str, str]) -> str:
+    """Eligibility rules of one product as a short Russian sentence.
+
+    Derived mechanically from the same `eligibility` dict that the rule engine
+    reads, so the text can never disagree with the answer key.
+    """
+    el = p.get("eligibility", {})
+    out = []
+    lo = el.get("age_min")
+    hi = el.get("age_max")
+    if "age_max_by_gender" in el:
+        g = el["age_max_by_gender"]
+        out.append(f"возраст от {lo}, не старше {g['f']} (женщины) / {g['m']} (мужчины) на момент погашения")
+    elif "age_max_at_maturity" in el:
+        out.append(f"возраст от {lo}, не старше {el['age_max_at_maturity']} на момент погашения кредита")
+    elif hi is not None:
+        out.append(f"возраст {lo}–{hi}")
+    elif lo:
+        out.append(f"возраст от {lo}")
+    inc = el.get("income_min_kzt")
+    if inc:
+        if "income_min_kzt_premium" in el:
+            out.append(f"доход от {inc} тг (от {el['income_min_kzt_premium']} тг в регионах: "
+                       + ", ".join(el.get("premium_income_regions", [])) + ")")
+        else:
+            out.append(f"доход от {inc} тг")
+    allowed = el.get("employment_allowed")
+    if allowed and len(allowed) < 6:
+        out.append("занятость: " + ", ".join(_EMP_SHORT_RU.get(a, a) for a in allowed))
+    if el.get("credit_score_min"):
+        out.append(f"кредитный скоринг от {el['credit_score_min']}")
+    if el.get("max_dti"):
+        out.append(f"платежи по долгам, включая новый платёж, не более {int(el['max_dti'] * 100)}% дохода")
+    if el.get("requires_children"):
+        out.append("нужны дети")
+    if el.get("requires_holds"):
+        out.append("нужен один из продуктов: " + ", ".join(names.get(h, h) for h in el["requires_holds"]))
+    if el.get("excludes_if_holds"):
+        out.append("недоступен, если уже есть: " + ", ".join(names.get(h, h) for h in el["excludes_if_holds"]))
+    return "условия: " + "; ".join(out) if out else "условия: нет ограничений"
+
+
 def catalogue_block(catalog: dict, allowed: list[str] | None = None,
-                    shuffle_key: str | None = None) -> str:
+                    shuffle_key: str | None = None,
+                    with_rules: bool = False) -> str:
     products = list(catalog["products"])
     if shuffle_key is not None:
         random.Random(shuffle_key).shuffle(products)
@@ -127,6 +185,8 @@ def catalogue_block(catalog: dict, allowed: list[str] | None = None,
             bits.append(f"срок {a['term_months']} мес")
         if "min_amount_kzt" in a:
             bits.append(f"мин. сумма {a['min_amount_kzt']} тг")
+        if with_rules:
+            bits.append(rules_text(p, {q["product_id"]: q["product_id"] for q in catalog["products"]}))
         lines.append("; ".join(bits))
     return "\n".join(lines)
 
@@ -165,6 +225,9 @@ def build_prompt(
 
     if catalogue == "listed":
         blocks.append("Каталог продуктов:\n" + catalogue_block(catalog, shuffle_key=order_key))
+    elif catalogue == "rules":
+        blocks.append("Каталог продуктов с условиями:\n"
+                      + catalogue_block(catalog, shuffle_key=order_key, with_rules=True))
     elif catalogue == "filtered":
         blocks.append(
             "Продукты, доступные этому клиенту:\n"
