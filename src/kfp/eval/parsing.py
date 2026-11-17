@@ -20,6 +20,14 @@ from __future__ import annotations
 import re
 import unicodedata
 
+# Bump when the parsing rules change, so results can state which parser
+# produced them. (Parsing is applied to saved answers at scoring time, so a
+# parser change does NOT require regenerating model outputs.)
+#   1: initial
+#   2: brackets/quotes stripped before matching; product_id also matched with
+#      underscores replaced by spaces ("HB Deposit Universal")
+PARSER_VERSION = 2
+
 # Markers must be SPECIFIC. An early version listed the bare Kazakh word
 # "төмен" (low), which matches inside the entirely ordinary phrase
 # "ең төменгі сома" (minimum amount). Every correct recommendation that quoted
@@ -30,6 +38,10 @@ import unicodedata
 #
 # Rule: only multi-word phrases or morphologically unambiguous negatives.
 # Anything that could appear inside a neutral banking phrase is banned.
+#
+# NOTE: markers are deliberately NOT extended after looking at a weak model's
+# degenerate Kazakh output. Doing so would tune the parser on test outputs.
+# Any extension must come from a documented audit of unparseable answers.
 NEGATION_MARKERS_KK = [
     "жарамайсыз", "сәйкес келмейді", "қол жетімсіз", "қолжетімсіз",
     "мүмкін емес", "талаптарға сай емес", "ұсына алмаймын",
@@ -48,9 +60,15 @@ ADVISOR_MARKERS = [
     "отделение", "менеджер",
 ]
 
+# Brackets and quotation marks are removed on BOTH sides of the comparison
+# (aliases and answer text), so "Halyk Bonus (дебеттік карта)" matches whether
+# or not the model kept the parentheses.
+_STRIP_CHARS = re.compile(r"[()«»\"“”„]")
+
 
 def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKC", s).lower()
+    s = _STRIP_CHARS.sub(" ", s)
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -66,13 +84,20 @@ class AnswerParser:
         # This penalised precisely the better-behaved models: KazLLM-8B was
         # reported at 66.7% unparseable while its answers were grammatical and
         # on-topic, purely because it referred to products by id.
+        #
+        # The id is also matched with underscores replaced by spaces, because
+        # models write "HB Deposit Universal" as well as "hb_deposit_universal".
+        # This is an exact match after a separator change, not a fuzzy match:
+        # misspelt ids (e.g. "hb_mortage_7_20_25") remain unparseable.
         self.aliases: dict[str, list[str]] = {}
         for p in catalog["products"]:
-            names = [p["product_id"], p.get("name_kk", ""), p.get("name_ru", "")]
+            pid = p["product_id"]
+            names = [pid, pid.replace("_", " "),
+                     p.get("name_kk", ""), p.get("name_ru", "")]
             names = [_norm(n) for n in names if n]
             # longest first, so a longer id is preferred over a shorter alias
             # that happens to be a substring of it
-            self.aliases[p["product_id"]] = sorted(set(names), key=len, reverse=True)
+            self.aliases[pid] = sorted(set(names), key=len, reverse=True)
         self.by_id = {p["product_id"]: p for p in catalog["products"]}
 
     # ------------------------------------------------------------ products

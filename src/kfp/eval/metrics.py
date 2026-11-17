@@ -335,3 +335,14 @@ def code_switching_degradation(by_condition: dict[str, list[dict]],
         if cond != "kk":
             out[f"delta_{cond}_vs_kk"] = val - base
     return out
+
+def profile_sensitivity_parsed(pairs):
+    """PS только по парам, где разобраны ОБА ответа. Переход «разобран ->
+    неразобран» не является реакцией на профиль, это шум парсинга."""
+    ok = [(a, b) for a, b in pairs
+          if a["pred_action"] is not None and b["pred_action"] is not None]
+    if not ok:
+        return float("nan")
+    return float(np.mean([
+        (a["pred_action"], a["pred_product_id"]) != (b["pred_action"], b["pred_product_id"])
+        for a, b in ok]))

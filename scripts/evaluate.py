@@ -173,6 +173,15 @@ class NoisyOraclePolicy(Policy):
         return {"pred_action": "recommend", "pred_product_id": pid,
                 "asserted_numbers": [float(self.rng.integers(5, 40))]}
 
+class AlwaysOpenPolicy(Policy):
+    """Коллапс на самый нестрогий продукт: нулевые нарушения, нулевая персонализация."""
+    name = "always_open"
+
+    def predict(self, s):
+        pid = "hb_deposit_qorjin"
+        return {"pred_action": "recommend", "pred_product_id": pid,
+                "asserted_numbers": self._numbers_for(pid)}
+
 
 # ------------------------------------------------------------------ scoring
 
@@ -189,6 +198,8 @@ def score(records: list[dict], catalog: dict) -> dict:
         "sensitivity_gap": M.sensitivity_correctness_gap(pairs),
         "answer_diversity": M.answer_diversity(base_only),
         "unparseable_rate": M.unparseable_rate(base_only),
+        "profile_sensitivity_parsed": M.profile_sensitivity_parsed(pairs),
+        "n_pairs": len(pairs),
     }
     out.update(M.refusal_metrics(base_only))
     out.update(M.fact_grounding(base_only, catalog))
@@ -235,7 +246,7 @@ def main() -> None:
 
     # ---- metric validation run
     table, per_item = {}, {}
-    for cls in (OraclePolicy, ProfileBlindPolicy, EligibilityBlindPolicy, NoisyOraclePolicy):
+    for cls in (OraclePolicy, ProfileBlindPolicy, EligibilityBlindPolicy, NoisyOraclePolicy, AlwaysOpenPolicy):
         runs, vecs = [], None
         for seed in args.seeds:
             pol = cls(catalog, train, seed=seed)

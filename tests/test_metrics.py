@@ -174,3 +174,8 @@ def test_real_fabrication_is_still_caught():
     r = rec(pred_product_id="hb_deposit_qorjin", asserted_numbers=[99.0],
             rationale_facts=["product_id=hb_deposit_qorjin"])
     assert M.fact_grounding([r], CATALOG)["fact_fabrication_rate"] == 1.0
+
+def test_parser_ignores_brackets_in_product_names():
+    p = AnswerParser(CATALOG)
+    r = p.parse("Мен сізге Halyk Bonus (дебеттік карта) ұсынамын")
+    assert r["product_id"] == "hb_card_debit"

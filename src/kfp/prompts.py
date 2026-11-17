@@ -108,9 +108,15 @@ def behaviour_block(feats: dict, segment: int | None) -> str:
     return json.dumps(b, ensure_ascii=False)
 
 
-def catalogue_block(catalog: dict, allowed: list[str] | None = None) -> str:
+import random
+
+def catalogue_block(catalog: dict, allowed: list[str] | None = None,
+                    shuffle_key: str | None = None) -> str:
+    products = list(catalog["products"])
+    if shuffle_key is not None:
+        random.Random(shuffle_key).shuffle(products)
     lines = []
-    for p in catalog["products"]:
+    for p in products:
         if allowed is not None and p["product_id"] not in allowed:
             continue
         a = p.get("attributes", {})
@@ -154,14 +160,18 @@ def build_prompt(
             blocks.append("Поведение по транзакциям: " + behaviour_block(feats, segment))
     elif context != "none":
         raise ValueError(f"unknown context level: {context}")
+    
+    order_key = scenario.get("counterfactual_of") or scenario["scenario_id"]
 
     if catalogue == "listed":
-        blocks.append("Каталог продуктов:\n" + catalogue_block(catalog))
+        blocks.append("Каталог продуктов:\n" + catalogue_block(catalog, shuffle_key=order_key))
     elif catalogue == "filtered":
         blocks.append(
             "Продукты, доступные этому клиенту:\n"
-            + catalogue_block(catalog, scenario["eligible_products"])
+            + catalogue_block(catalog, scenario["eligible_products"], shuffle_key=order_key)
         )
+        
+
     elif catalogue != "closed":
         raise ValueError(f"unknown catalogue mode: {catalogue}")
 
