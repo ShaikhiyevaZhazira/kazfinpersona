@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
 """Evaluate systems on KazFinPersona.
 
-Two modes:
+Three modes:
 
-  --predictions FILE   score a real model's outputs (JSONL with
-                       {scenario_id, answer_text} or {scenario_id,
-                       pred_action, pred_product_id})
+  --predictions FILE   score one model checkpoint (JSONL, one row per
+                       scenario with `scenario_id` and `answer_text`). The
+                       answer is RE-PARSED here, so a parser change never
+                       requires regenerating outputs.
 
-  --simulate           score four synthetic policies whose behaviour is known
-                       by construction. This is a *metric validation* run: it
-                       checks that the metric suite separates a model that
-                       genuinely uses the client profile from one that has
-                       memorised `intent -> most frequent product`.
+  --simulate           score the synthetic reference policies on the full test
+                       split. This is a *metric validation* run: the oracle
+                       must score 1.000, a profile-blind policy must score
+                       CC = 0. Run it before trusting any model number.
 
-Run --simulate before trusting any number this suite produces on a real model.
-If a profile-blind policy scores well on your personalization metric, the
-metric is broken, not the policy.
+  --compare FILE       the table that goes in the paper: the model checkpoint
+                       and every reference policy scored on EXACTLY THE SAME
+                       scenario ids (the ones present in the checkpoint). The
+                       full-test simulation numbers are NOT comparable with a
+                       model scored on a 200-item sample, because the sample
+                       is deliberately enriched in counterfactual origins.
+
+Parser: strict is the primary result; lenient (one-edit product ids, unique
+short names) is reported next to it as a sensitivity row.
 """
 from __future__ import annotations
 
@@ -32,6 +38,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from kfp import eligibility  # noqa: E402
 from kfp.eval import metrics as M, stats as S  # noqa: E402
+from kfp.eval.parsing import AnswerParser, PARSER_VERSION  # noqa: E402
 
 
 # ------------------------------------------------------------------ loading
@@ -40,12 +47,41 @@ def load_scenarios(path: Path) -> list[dict]:
     return [json.loads(l) for l in open(path, encoding="utf-8")]
 
 
-def build_records(scenarios: list[dict], predictions: dict) -> list[dict]:
+def load_predictions(path: str) -> dict[str, dict]:
+    out = {}
+    for l in open(path, encoding="utf-8"):
+        if l.strip():
+            row = json.loads(l)
+            out[row["scenario_id"]] = row
+    return out
+
+
+def build_records(scenarios: list[dict], predictions: dict,
+                  parser: AnswerParser | None = None) -> list[dict]:
+    """Join gold with predictions.
+
+    If a parser is given and the prediction carries `answer_text`, the
+    prediction is re-derived from the text. Policies have no text and keep
+    their stored pred_* fields.
+    """
     recs = []
     for s in scenarios:
         p = predictions.get(s["scenario_id"])
         if p is None:
             continue
+        text = p.get("answer_text", "")
+        if parser is not None and text is not None and "answer_text" in p:
+            q = parser.parse(text)
+            pred_action, pred_pid = q["action"], q["product_id"]
+            unparseable = q["unparseable"]
+            numbers = q["asserted_numbers"]
+            rec_ids = q["recommended_ids"]
+        else:
+            pred_action = p.get("pred_action")
+            pred_pid = p.get("pred_product_id")
+            unparseable = p.get("unparseable", False)
+            numbers = p.get("asserted_numbers", [])
+            rec_ids = p.get("recommended_ids")        # None for policies
         recs.append({
             "scenario_id": s["scenario_id"],
             "client_id": s["client_id"],
@@ -56,11 +92,12 @@ def build_records(scenarios: list[dict], predictions: dict) -> list[dict]:
             "ineligible_products": s["ineligible_products"],
             "rationale_facts": s["rationale_facts"],
             "counterfactual_of": s["counterfactual_of"],
-            "pred_action": p.get("pred_action"),
-            "pred_product_id": p.get("pred_product_id"),
-            "asserted_numbers": p.get("asserted_numbers", []),
-            "answer_text": p.get("answer_text", ""),
-            "unparseable": p.get("unparseable", False),
+            "pred_action": pred_action,
+            "pred_product_id": pred_pid,
+            "asserted_numbers": numbers,
+            "answer_text": text,
+            "unparseable": unparseable,
+            "recommended_ids": rec_ids,
         })
     return recs
 
@@ -136,10 +173,14 @@ class ProfileBlindPolicy(Policy):
 
 
 class EligibilityBlindPolicy(Policy):
-    """Uses the profile for topical fit but ignores the eligibility rules.
+    """Knows the client's goal-relevant product but ignores eligibility rules.
 
-    Designed to score well on accuracy-family metrics while producing a high
-    constraint-violation rate — i.e. exactly the model a bank cannot deploy.
+    NOTE: this is an *oracle-assisted* policy, not a deployable one. It picks
+    the gold product whenever the gold product serves the question's goal, so
+    its product-match accuracy is 1.000 by construction; otherwise it takes
+    the first goal-relevant product in the catalogue. Its role is to show what
+    "perfect topical fit, zero rule awareness" looks like on the compliance
+    metrics (constraint_violation_rate), not to act as a competitive baseline.
     """
     name = "eligibility_blind"
 
@@ -173,14 +214,20 @@ class NoisyOraclePolicy(Policy):
         return {"pred_action": "recommend", "pred_product_id": pid,
                 "asserted_numbers": [float(self.rng.integers(5, 40))]}
 
+
 class AlwaysOpenPolicy(Policy):
-    """Коллапс на самый нестрогий продукт: нулевые нарушения, нулевая персонализация."""
+    """Collapse onto the least restrictive product: zero violations, zero
+    personalization."""
     name = "always_open"
 
     def predict(self, s):
         pid = "hb_deposit_qorjin"
         return {"pred_action": "recommend", "pred_product_id": pid,
                 "asserted_numbers": self._numbers_for(pid)}
+
+
+POLICIES = (OraclePolicy, ProfileBlindPolicy, EligibilityBlindPolicy,
+            NoisyOraclePolicy, AlwaysOpenPolicy)
 
 
 # ------------------------------------------------------------------ scoring
@@ -191,6 +238,8 @@ def score(records: list[dict], catalog: dict) -> dict:
     out = {
         "action_accuracy": M.action_accuracy(base_only),
         "product_match_accuracy": M.product_match_accuracy(base_only),
+        "product_match_single": M.product_match_single(base_only),
+        "multi_product_rate": M.multi_product_rate(base_only),
         "constraint_violation_rate": M.constraint_violation_rate(base_only),
         "hard_violation_rate": M.hard_violation_rate(base_only),
         "profile_sensitivity": M.profile_sensitivity(pairs),
@@ -199,21 +248,74 @@ def score(records: list[dict], catalog: dict) -> dict:
         "answer_diversity": M.answer_diversity(base_only),
         "unparseable_rate": M.unparseable_rate(base_only),
         "profile_sensitivity_parsed": M.profile_sensitivity_parsed(pairs),
-        "n_pairs": len(pairs),
     }
+    out.update(M.counts(base_only, pairs))
     out.update(M.refusal_metrics(base_only))
     out.update(M.fact_grounding(base_only, catalog))
     return out
 
 
-def per_item_correct(records: list[dict]) -> list[float]:
-    """Per-item score vector for the paired significance tests."""
-    return [
-        1.0 if (r["pred_action"] == r["gold_action"]
-                and r["pred_product_id"] == r["gold_product_id"]) else 0.0
+def per_item_correct(records: list[dict]) -> dict[str, float]:
+    """scenario_id -> 1/0 (action and product both right), base items only."""
+    return {
+        r["scenario_id"]: 1.0 if (r["pred_action"] == r["gold_action"]
+                                  and r["pred_product_id"] == r["gold_product_id"]) else 0.0
         for r in records if not r["counterfactual_of"]
-    ]
+    }
 
+
+def run_policies(catalog, train, items, seeds):
+    """Score every reference policy on `items` for each seed.
+
+    Returns (table, per_item_vectors_of_seed0, pair_breakdown_of_seed0).
+    """
+    table, vecs, brk = {}, {}, {}
+    for cls in POLICIES:
+        runs = []
+        for seed in seeds:
+            pol = cls(catalog, train, seed=seed)
+            preds = {s["scenario_id"]: pol.predict(s) for s in items}
+            recs = build_records(items, preds)
+            runs.append(score(recs, catalog))
+            if seed == seeds[0]:
+                vecs[cls.name] = per_item_correct(recs)
+                brk[cls.name] = M.pair_breakdown(make_pairs(recs))
+        table[cls.name] = S.aggregate_seeds(runs)
+    return table, vecs, brk
+
+
+def _fmt(v, nd=3):
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        return "--"
+    return f"{v:.{nd}f}"
+
+
+COLS = ["action_accuracy", "product_match_accuracy", "answer_diversity",
+        "profile_sensitivity", "counterfactual_correctness",
+        "constraint_violation_rate", "refusal_recall"]
+
+
+def print_table(rows: dict[str, dict], cols=COLS) -> None:
+    print(f"\n{'system':<24}" + "".join(f"{c[:14]:>16}" for c in cols))
+    print("-" * (24 + 16 * len(cols)))
+    for name, row in rows.items():
+        print(f"{name:<24}" + "".join(f"{_fmt(row.get(c)):>16}" for c in cols))
+
+
+def flat_mean(row: dict) -> dict:
+    """aggregate_seeds output ({metric: {'mean':..}}) -> {metric: mean}."""
+    return {k: (v["mean"] if isinstance(v, dict) and "mean" in v else v)
+            for k, v in row.items()}
+
+
+def score_model(path, test, catalog, lenient):
+    parser = AnswerParser(catalog, lenient=lenient)
+    preds = load_predictions(path)
+    recs = build_records(test, preds, parser=parser)
+    return recs, score(recs, catalog)
+
+
+# --------------------------------------------------------------------- main
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -221,6 +323,11 @@ def main() -> None:
     ap.add_argument("--catalog", default=str(ROOT / "config" / "products_halyk.json"))
     ap.add_argument("--simulate", action="store_true")
     ap.add_argument("--predictions", default=None)
+    ap.add_argument("--compare", default=None,
+                    help="model checkpoint JSONL; policies are scored on the "
+                         "same scenario ids")
+    ap.add_argument("--parser", choices=["strict", "lenient"], default="strict",
+                    help="parser mode for --predictions (primary = strict)")
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     ap.add_argument("--out", default=str(ROOT / "results" / "eval"))
     args = ap.parse_args()
@@ -233,52 +340,105 @@ def main() -> None:
 
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
+    print(f"parser v{PARSER_VERSION}")
 
-    if not args.simulate:
-        preds = {json.loads(l)["scenario_id"]: json.loads(l)
-                 for l in open(args.predictions, encoding="utf-8")}
-        recs = build_records(test, preds)
-        res = score(recs, catalog)
+    # ---- one model
+    if args.predictions:
+        recs, res = score_model(args.predictions, test, catalog,
+                                args.parser == "lenient")
+        res["parser"] = f"v{PARSER_VERSION}-{args.parser}"
         (outdir / "metrics.json").write_text(
-            json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(json.dumps(res, ensure_ascii=False, indent=2))
+            json.dumps(res, ensure_ascii=False, indent=2, default=float),
+            encoding="utf-8")
+        print(json.dumps(res, ensure_ascii=False, indent=2, default=float))
+        print("\npair breakdown:",
+              json.dumps(M.pair_breakdown(make_pairs(recs)), indent=2, default=float))
         return
 
-    # ---- metric validation run
-    table, per_item = {}, {}
-    for cls in (OraclePolicy, ProfileBlindPolicy, EligibilityBlindPolicy, NoisyOraclePolicy, AlwaysOpenPolicy):
-        runs, vecs = [], None
-        for seed in args.seeds:
-            pol = cls(catalog, train, seed=seed)
-            preds = {s["scenario_id"]: pol.predict(s) for s in test}
-            recs = build_records(test, preds)
-            runs.append(score(recs, catalog))
-            if vecs is None:
-                vecs = per_item_correct(recs)
-        table[cls.name] = S.aggregate_seeds(runs)
-        per_item[cls.name] = vecs
+    # ---- model vs reference policies on identical items
+    if args.compare:
+        ids = set(load_predictions(args.compare))
+        items = [s for s in test if s["scenario_id"] in ids]
+        missing = ids - {s["scenario_id"] for s in items}
+        if missing:
+            print(f"WARNING: {len(missing)} checkpoint ids are not in the test "
+                  f"split (e.g. {sorted(missing)[:3]})")
+        table, vecs, brk = run_policies(catalog, train, items, args.seeds)
 
-    cols = ["action_accuracy", "product_match_accuracy", "answer_diversity",
-            "profile_sensitivity", "counterfactual_correctness",
-            "constraint_violation_rate", "refusal_recall"]
+        rows = {k: flat_mean(v) for k, v in table.items()}
+        model_res = {}
+        for mode in ("strict", "lenient"):
+            recs, res = score_model(args.compare, test, catalog, mode == "lenient")
+            model_res[mode] = res
+            rows[f"MODEL ({mode})"] = res
+            if mode == "strict":
+                model_vec = per_item_correct(recs)
+                model_brk = M.pair_breakdown(make_pairs(recs))
 
-    print(f"\n{'system':<20}" + "".join(f"{c[:14]:>16}" for c in cols))
-    print("-" * (20 + 16 * len(cols)))
-    for sysname, row in table.items():
-        cells = ""
-        for c in cols:
-            d = row.get(c)
-            cells += f"{d['mean']:>16.3f}" if d and not np.isnan(d["mean"]) else f"{'--':>16}"
-        print(f"{sysname:<20}{cells}")
+        print(f"\nsame-items comparison: n_items={len(items)} "
+              f"n_base={int(rows['oracle']['n_base'])} "
+              f"n_pairs={int(rows['oracle']['n_pairs'])}")
+        print_table(rows)
+
+        # Wilson interval on the model's headline proportions
+        m = model_res["strict"]
+        k_pm = round(m["product_match_accuracy"] * m["n_gold_recommend"])
+        print("\nmodel PMA  = %s  [%s, %s]  (n=%d gold-recommend)" % (
+            _fmt(m["product_match_accuracy"]),
+            *[_fmt(x) for x in M.wilson(k_pm, m["n_gold_recommend"])],
+            m["n_gold_recommend"]))
+        k_ps = round(m["profile_sensitivity"] * m["n_pairs"])
+        k_cc = round(m["counterfactual_correctness"] * m["n_pairs"])
+        print("model PS   = %s  [%s, %s]  (n=%d pairs)" % (
+            _fmt(m["profile_sensitivity"]),
+            *[_fmt(x) for x in M.wilson(k_ps, m["n_pairs"])], m["n_pairs"]))
+        print("model CC   = %s  [%s, %s]  (n=%d pairs)" % (
+            _fmt(m["counterfactual_correctness"]),
+            *[_fmt(x) for x in M.wilson(k_cc, m["n_pairs"])], m["n_pairs"]))
+
+        # paired tests, model vs each policy, aligned by scenario id
+        tests = {}
+        for name, vec in vecs.items():
+            common = sorted(set(vec) & set(model_vec))
+            tests[f"model_vs_{name}"] = S.paired_test(
+                [model_vec[i] for i in common], [vec[i] for i in common])
+        ok = {k: v["pvalue"] for k, v in tests.items()
+              if not np.isnan(v["pvalue"])}
+        corrected = S.holm_bonferroni(ok) if ok else {}
+        print("\npaired tests, model vs policy (Holm-corrected):")
+        for k, v in corrected.items():
+            print(f"  {k:<32} p_adj={v['p_adjusted']:.2e}  significant={v['significant']}")
+
+        print("\npair breakdown (model, strict):")
+        for k, v in model_brk.items():
+            print(f"  {k:<28} n={v['n']:<3} PS={_fmt(v['profile_sensitivity'])} "
+                  f"CC={_fmt(v['counterfactual_correctness'])}")
+
+        (outdir / "compare.json").write_text(json.dumps({
+            "parser_version": PARSER_VERSION, "n_items": len(items),
+            "policies": table, "model": model_res,
+            "model_pair_breakdown": model_brk, "policy_pair_breakdown": brk,
+            "tests": tests, "corrected": corrected,
+        }, ensure_ascii=False, indent=2, default=float), encoding="utf-8")
+        print(f"\nwritten to {outdir / 'compare.json'}")
+        return
+
+    # ---- metric validation run on the full test split
+    if not args.simulate:
+        ap.error("choose one of --predictions, --compare, --simulate")
+
+    table, vecs, _ = run_policies(catalog, train, test, args.seeds)
+    print_table({k: flat_mean(v) for k, v in table.items()})
 
     tests = {}
-    for name in per_item:
+    for name, vec in vecs.items():
         if name == "oracle":
             continue
-        tests[f"oracle_vs_{name}"] = S.paired_test(per_item["oracle"], per_item[name])
+        ids = sorted(vecs["oracle"])
+        tests[f"oracle_vs_{name}"] = S.paired_test(
+            [vecs["oracle"][i] for i in ids], [vec[i] for i in ids])
     corrected = S.holm_bonferroni({k: v["pvalue"] for k, v in tests.items()
                                    if not np.isnan(v["pvalue"])})
-
     print("\npaired tests vs oracle (Holm-corrected):")
     for k, v in corrected.items():
         print(f"  {k:<32} p_adj={v['p_adjusted']:.2e}  significant={v['significant']}")
@@ -287,7 +447,7 @@ def main() -> None:
         json.dumps({"table": table, "tests": tests, "corrected": corrected},
                    ensure_ascii=False, indent=2, default=float), encoding="utf-8")
     (outdir / "simulation_table.tex").write_text(
-        S.results_to_latex(table, cols,
+        S.results_to_latex(table, COLS,
                            caption="Metric validation on synthetic policies.",
                            label="tab:metric-validation"), encoding="utf-8")
     print(f"\nwritten to {outdir}")
